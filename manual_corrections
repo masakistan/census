@@ -1,0 +1,8 @@
+004532416_00027    i > 9    ci+=3 # after image 9, add 3 to image idx
+004531896_00378    True    print_surname=True # always print surname
+004548166_00168    i == 4    print_surname=True
+004606946_00119    i in [36, 18]    print_surname=True
+004547336_00084    i == 49    print_surname=True
+004532456_00341    i == 37    print_surname=True
+004532006_00196    i == 20    print_surname=True
+004584646_00016    i in [3,4,5,8,13,45]    print_surname=True
