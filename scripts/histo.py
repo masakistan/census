@@ -6,13 +6,23 @@ from scipy import optimize
 from os.path import join
 from os import makedirs
 
-START, END = 260, 670
+START, END = 280, 735
 THRESH = 300000
 VTHRESH = 25000
 PAD = 0
 
-EXPECTED_HEIGHT = 37
+VERTICAL_START = 235
+VERTICAL_END = 2450
+
+EXPECTED_HEIGHT = 40
+EXPECTED_HEIGHT_TOLERANCE = 5
 MERGED_ROW_TOLERANCE = 10
+
+TOP_CELL_BUFFER = 2
+BOTTOM_CELL_BUFFER = 20
+
+BIN_THRESH = 220
+
 
 def rle(inarray):
     """ run length encoding. Partial credit to R rle function. 
@@ -62,17 +72,21 @@ def split_erroneously_merged_rows(z, p):
 img = cv2.imread(sys.argv[1])
 img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 #print(img_gray.shape)
-img_bin = img_gray
-img_bin[img_bin < 150] = 0
-img_bin[img_bin >= 150] = 255
+#img_bin = img_gray
+#img_bin[img_bin < BIN_THRESH] = 0
+#img_bin[img_bin >= BIN_THRESH] = 255
 
 
 #plt.hist(img_gray.flatten(), bins = 'auto')
 #plt.show()
 
 # NOTE: names should be somewhere in here
+img_bin = cv2.adaptiveThreshold(img_gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 7, 2)
 img_bin_piece = img_bin[:, START:END]
-#cv2.imwrite('ex_binarized.jpg', binarized)
+#cv2.imwrite('ex_binaraized_adaptive.jpg', img_piece)
+
+#img_bin_piece = img_bin[:, START:END]
+#cv2.imwrite('ex_binarized.jpg', img_bin_piece)
 
 #vdist = np.sum(binarized, axis = 1)
 hdist = np.sum(img_bin_piece, axis = 0)
@@ -121,11 +135,12 @@ z, p, v = rle(boundaries)
 z, p = split_erroneously_merged_rows(z, p)
 count = 0
 for i, (_p, _z) in enumerate(zip(p, z)):
-    if _p > 200 and _z > 35:
-        #print(i, _p, _z, p[i - 1], p[i + 1])
-        start = p[i - 1] - 2
+    print(_p, _z)
+    if _p > VERTICAL_START and _z > EXPECTED_HEIGHT - EXPECTED_HEIGHT_TOLERANCE and count < 50:
+        print('\t', count, i, _p, _z, p[i - 1], p[i + 1])
+        start = p[i - 1] - TOP_CELL_BUFFER
         try:
-            end = p[i + 1] + z[i + 1] + 20
+            end = p[i + 1] + z[i + 1] + BOTTOM_CELL_BUFFER
         except:
             end = len(name)
         
