@@ -1,0 +1,96 @@
+import sys, json
+from os.path import join
+import xml.etree.ElementTree as ET
+from collections import defaultdict
+
+surname_if_blank = '---, '
+xml_dir = sys.argv[2]
+idx = 0
+
+# NOTE: load manual corrections
+corr = dict()
+with open(sys.argv[3], 'r') as fh:
+    for line in fh:
+        if line[0] == '#':
+            continue
+
+        line = line.split('#')[0].strip()
+        line = line.split('    ')
+        key, cond, cons = line
+        corr[key] = (cond, cons)
+
+with open(sys.argv[1], 'r') as fh:
+    for line in fh:
+        page_id = line.strip()
+        if len(page_id) == 0:
+            continue
+        xml_path = join(xml_dir, page_id + '.xml')
+        root = ET.parse(xml_path).getroot()
+
+        i = 0
+        surn = None
+        gn = None
+
+        phid = None
+        psurn = None
+        set_hid_to_surn = False
+        #print('xml path:', xml_path)
+        skipped = set()
+        for type_tag in root.findall('headera/header-item'):
+            #print(i)
+            #print(type_tag.get('name'))
+
+            #NOTE: check if blank row
+            if type_tag.get('record') in skipped:
+                continue
+            
+            if type_tag.get('name') == 'PR_NAME_SURN' and type_tag.text is not None:
+                for sub_tag in type_tag.findall('md/md'):
+                    if sub_tag.get('name') == 'marker' and sub_tag.get('value') == 'Blank':
+                        #print('incrementing blank')
+                        i += 1
+                        skipped.add(type_tag.get('record'))
+                        continue
+                surn = type_tag.text.strip()
+                if set_hid_to_surn:
+                    hid = surn
+                    set_hid_to_surn = False
+            elif type_tag.get('name') == 'PR_NAME_GN' and type_tag.text is not None:
+                gn = type_tag.text.strip()
+            elif type_tag.get('name') == 'HOUSEHOLD_ID' and type_tag.text is not None:
+                hid = type_tag.text.strip()
+                if len(hid) == 0:
+                    set_hid_to_surn = True
+
+            if surn is not None and gn is not None:
+
+                #print(phid, hid)
+                if surn is None and gn is None:
+                    surn = "-"
+                    gn = "-"
+
+                ci = i
+                if phid != hid or psurn != surn.lower():
+                    print_surname = True
+                else:
+                    print_surname = False
+                    
+                if page_id in corr:
+                    if eval(corr[page_id][0]):
+                        exec(corr[page_id][1])
+                        
+                info = join('name_snippets', line.strip(), line.strip() + '_' + str(ci) + '.jpg')
+                #assert i < 60, info
+                
+                if print_surname:
+                    print('\t'.join(map(str, [idx, info, surn + ', ' + gn])))
+                else:
+                    print('\t'.join(map(str, [idx, info, surname_if_blank + gn])))
+
+                phid = hid
+                psurn = surn.lower()
+                surn = None
+                gn = None
+                i += 1
+                idx += 1
+        
